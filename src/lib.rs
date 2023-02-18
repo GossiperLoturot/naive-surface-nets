@@ -26,15 +26,11 @@ const EDGE_TABLE: [[usize; 2]; 12] = [
     [3, 7],
 ];
 
-#[inline]
 fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a * (1.0 - t) + b * t
 }
 
-// &mut [T]を*mut Tにするとなぜか速くなる
-// ただし&[T]を*const Tにすると遅くなる
-#[inline]
-fn execute_imp(
+fn naive_surface_nets(
     voxel: &[f32],
     size: usize,
     vertices: &mut [Vector3],
@@ -45,9 +41,9 @@ fn execute_imp(
 
     let mut idx_buf = vec![0; size * size * size];
 
-    let mut neigh = [0; 8];
+    let mut neighbor = [0; 8];
     for i in 0..8 {
-        neigh[i] = IDX_TABLE[i][0] + IDX_TABLE[i][1] * size + IDX_TABLE[i][2] * size * size;
+        neighbor[i] = IDX_TABLE[i][0] + IDX_TABLE[i][1] * size + IDX_TABLE[i][2] * size * size;
     }
 
     let mut make_face = |v0, v1, v2, v3, dir| {
@@ -75,14 +71,14 @@ fn execute_imp(
                 let idx = x + y * size + z * size * size;
 
                 let mut kind = 0;
-                if 0.0 > voxel[idx + neigh[0]] { kind |= 1; }
-                if 0.0 > voxel[idx + neigh[1]] { kind |= 2; }
-                if 0.0 > voxel[idx + neigh[2]] { kind |= 4; }
-                if 0.0 > voxel[idx + neigh[3]] { kind |= 8; }
-                if 0.0 > voxel[idx + neigh[4]] { kind |= 16; }
-                if 0.0 > voxel[idx + neigh[5]] { kind |= 32; }
-                if 0.0 > voxel[idx + neigh[6]] { kind |= 64; }
-                if 0.0 > voxel[idx + neigh[7]] { kind |= 128; }
+                if 0.0 > voxel[idx + neighbor[0]] { kind |= 1; }
+                if 0.0 > voxel[idx + neighbor[1]] { kind |= 2; }
+                if 0.0 > voxel[idx + neighbor[2]] { kind |= 4; }
+                if 0.0 > voxel[idx + neighbor[3]] { kind |= 8; }
+                if 0.0 > voxel[idx + neighbor[4]] { kind |= 16; }
+                if 0.0 > voxel[idx + neighbor[5]] { kind |= 32; }
+                if 0.0 > voxel[idx + neighbor[6]] { kind |= 64; }
+                if 0.0 > voxel[idx + neighbor[7]] { kind |= 128; }
 
                 if kind == 0 || kind == 255 { continue; }
 
@@ -95,8 +91,8 @@ fn execute_imp(
 
                     if (kind >> i0 & 1) == (kind >> i1 & 1) { continue; }
 
-                    let val0 = voxel[idx + neigh[i0]];
-                    let val1 = voxel[idx + neigh[i1]];
+                    let val0 = voxel[idx + neighbor[i0]];
+                    let val1 = voxel[idx + neighbor[i1]];
 
                     let mix = (0.0 - val0) / (val1 - val0);
 
@@ -118,14 +114,14 @@ fn execute_imp(
                 if x == 0 || y == 0 || z == 0 { continue; }
 
                 let mut v = [0; 8];
-                v[0] = idx_buf[idx - neigh[0]];
-                v[1] = idx_buf[idx - neigh[1]];
-                v[2] = idx_buf[idx - neigh[2]];
-                v[3] = idx_buf[idx - neigh[3]];
-                v[4] = idx_buf[idx - neigh[4]];
-                v[5] = idx_buf[idx - neigh[5]];
-                v[6] = idx_buf[idx - neigh[6]];
-                v[7] = idx_buf[idx - neigh[7]];
+                v[0] = idx_buf[idx - neighbor[0]];
+                v[1] = idx_buf[idx - neighbor[1]];
+                v[2] = idx_buf[idx - neighbor[2]];
+                v[3] = idx_buf[idx - neighbor[3]];
+                v[4] = idx_buf[idx - neighbor[4]];
+                v[5] = idx_buf[idx - neighbor[5]];
+                v[6] = idx_buf[idx - neighbor[6]];
+                v[7] = idx_buf[idx - neighbor[7]];
 
                 let dir = (kind & 1) != 0;
                 if ((kind >> 1 & 1) != 0) != dir { make_face(v[0], v[3], v[7], v[4], dir); }
@@ -139,7 +135,7 @@ fn execute_imp(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn execute(
+pub unsafe extern "C" fn naive_surface_nets_raw(
     voxel: *const f32,
     size: usize,
     vertices: *mut Vector3,
@@ -148,24 +144,19 @@ pub unsafe extern "C" fn execute(
     triangles_size: *mut usize,
 ) {
     let voxel = std::slice::from_raw_parts(voxel, size * size * size);
-
     let vertices = std::slice::from_raw_parts_mut(vertices, size * size * size);
-
     let triangles = std::slice::from_raw_parts_mut(triangles, size * size * size * 18);
-
-    (*vertices_size, *triangles_size) = execute_imp(voxel, size, vertices, triangles);
+    (*vertices_size, *triangles_size) = naive_surface_nets(voxel, size, vertices, triangles);
 }
 
 #[cfg(test)]
 mod tests {
-    use std::time::{SystemTime, Duration};
-
     use rand::random;
-
+    use std::time::{SystemTime, Duration};
     use super::*;
 
     #[test]
-    fn testcase_1() {
+    fn test() {
         let mut voxel = vec![0.0; 4096];
         for i in 0..4096 {
             voxel[i] = random::<f32>() - 0.5;
@@ -178,7 +169,7 @@ mod tests {
         let mut mean = Duration::ZERO;
         for _ in 0..n {
             let now = SystemTime::now();
-            execute_imp(&voxel, 16, &mut vertices, &mut triangles);
+            naive_surface_nets(&voxel, 16, &mut vertices, &mut triangles);
             mean += now.elapsed().unwrap();
         }
         mean /= n;
@@ -186,7 +177,7 @@ mod tests {
     }
 
     #[test]
-    fn testcase_2() {
+    fn test_raw() {
         let mut voxel = vec![0.0; 4096];
         for i in 0..4096 {
             voxel[i] = random::<f32>() - 0.5;
@@ -202,7 +193,7 @@ mod tests {
         for _ in 0..n {
             let now = SystemTime::now();
             unsafe {
-                execute(voxel.as_ptr(), 16, vertices.as_mut_ptr(), &mut vertices_size, triangles.as_mut_ptr(), &mut triangles_size);
+                naive_surface_nets_raw(voxel.as_ptr(), 16, vertices.as_mut_ptr(), &mut vertices_size, triangles.as_mut_ptr(), &mut triangles_size);
             }
             mean += now.elapsed().unwrap();
         }
