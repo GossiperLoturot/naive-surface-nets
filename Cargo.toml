@@ -9,4 +9,4 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dev-dependencies]
-rand = "*"
+rand = "0.8"
