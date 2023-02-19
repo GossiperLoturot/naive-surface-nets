@@ -137,16 +137,18 @@ fn naive_surface_nets(
 #[no_mangle]
 pub unsafe extern "C" fn naive_surface_nets_raw(
     voxel: *const f32,
-    size: usize,
+    size: i32,
     vertices: *mut Vector3,
-    vertices_size: *mut usize,
+    vertices_size: *mut i32,
     triangles: *mut u16,
-    triangles_size: *mut usize,
+    triangles_size: *mut i32,
 ) {
+    let size = size as usize;
     let voxel = std::slice::from_raw_parts(voxel, size * size * size);
     let vertices = std::slice::from_raw_parts_mut(vertices, size * size * size);
     let triangles = std::slice::from_raw_parts_mut(triangles, size * size * size * 18);
-    (*vertices_size, *triangles_size) = naive_surface_nets(voxel, size, vertices, triangles);
+    let result = naive_surface_nets(voxel, size, vertices, triangles);
+    (*vertices_size, *triangles_size) = (result.0 as i32, result.1 as i32);
 }
 
 #[cfg(test)]
