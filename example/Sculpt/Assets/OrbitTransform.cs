@@ -1,36 +1,19 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class OrbitTransform : MonoBehaviour
 {
     public Transform origin;
-    public Vector3 offset;
+    public float range;
     public float sensitivity;
 
-    Vector2 look;
-    bool pressed;
-
-    Vector3 eulerAngles;
-
-    public void LookCallback(InputAction.CallbackContext context)
-    {
-        look = context.ReadValue<Vector2>();
-    }
-
-    public void MiddleClickCallback(InputAction.CallbackContext context)
-    {
-        pressed = 0.5f < context.ReadValue<float>();
-    }
+    private Vector3 eulerAngles;
 
     void Update()
     {
-        if (pressed)
+        if (Input.GetMouseButton(2))
         {
-            eulerAngles += new Vector3(-look.y, look.x, 0f) * Time.deltaTime * 360f * sensitivity;
-
-            transform.position = origin.position + Quaternion.Euler(eulerAngles) * offset;
+            eulerAngles += new Vector3(-Input.GetAxis("Mouse Y"), Input.GetAxis("Mouse X"), 0) * Time.deltaTime * 360 * sensitivity;
+            transform.position = origin.position + Quaternion.Euler(eulerAngles) * Vector3.back * range;
             transform.rotation = Quaternion.LookRotation(origin.position - transform.position);
         } 
     }

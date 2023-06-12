@@ -1,4 +1,8 @@
+.vscode
 Library
 Logs
+obj
 Temp
 UserSettings
+*.csproj
+*.sln

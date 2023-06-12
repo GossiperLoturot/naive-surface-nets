@@ -15,7 +15,7 @@ public class SculptDomain : MonoBehaviour
     MeshFilter mf;
     MeshCollider mc;
 
-    [DllImport("naive_surface_nets.dll", EntryPoint="naive_surface_nets_raw")]
+    [DllImport("NaiveSurfaceNets", EntryPoint="naive_surface_nets_raw")]
     static unsafe extern void NaiveSurfaceNets(float* voxels, int size, Vector3* vertices, int* vertexCount, ushort* triangles, int* triangleCount);
 
     void Start()
